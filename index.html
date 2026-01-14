@@ -22,20 +22,26 @@
   
   .settings-btn { position: absolute; top: 20px; right: 20px; cursor: pointer; z-index: 101; }
   .game-header { width: 100%; max-width: 350px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 5px; }
-  .timer-box { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .timer-box { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .health-box { display: flex; align-items: center; gap: 4px; font-weight: 700; color: var(--error-red); }
   .header-btns { display: flex; gap: 8px; }
   .mini-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--ios-card); color: var(--ios-text); font-weight: 600; font-size: 13px; }
 
   #gameContainer { background: #000; padding: 2px; border-radius: 6px; display: inline-block; }
   .row { display: flex; }
-  .cell { width: 38px; height: 38px; border: 0.1px solid var(--border-color); text-align: center; font-size: 19px; background: var(--ios-card); color: var(--ios-text); border-radius: 0; appearance: none; -webkit-appearance: none; }
-  .cell:disabled { background-color: var(--fixed-bg); color: var(--ios-text); font-weight: 800; }
-  .row:nth-child(3n) .cell { border-bottom: 2px solid #000; }
-  .cell:nth-child(3n) { border-right: 2px solid #000; }
+  .cell-wrapper { width: 38px; height: 38px; position: relative; background: var(--ios-card); border: 0.1px solid var(--border-color); }
+  .cell { width: 100%; height: 100%; text-align: center; font-size: 19px; color: var(--ios-text); background: transparent; border: none; outline: none; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+  .cell.fixed { background-color: var(--fixed-bg); font-weight: 800; }
+  .notes-container { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); padding: 1px; pointer-events: none; }
+  .note-digit { font-size: 8px; color: var(--ios-secondary); text-align: center; line-height: 11px; }
+
+  .row:nth-child(3n) .cell-wrapper { border-bottom: 2px solid #000; }
+  .cell-wrapper:nth-child(3n) { border-right: 2px solid #000; }
 
   .pad { margin-top: 10px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; max-width: 350px; }
-  .pad button { aspect-ratio: 1.1; border-radius: 10px; border: none; background: var(--ios-card); color: var(--ios-text); font-size: 20px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .pad button { aspect-ratio: 1.1; border-radius: 10px; border: none; background: var(--ios-card); color: var(--ios-text); font-size: 20px; font-weight: 600; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
   #clearBtn { color: var(--error-red); }
+  #noteToggle.active { background: var(--ios-blue); color: #fff; }
 
   .btn-main { width: 100%; max-width: 280px; padding: 14px; border-radius: 12px; border: none; font-weight: 600; margin-bottom: 10px; font-size: 16px; }
   .btn-blue { background: var(--ios-blue); color: #fff; }
@@ -43,7 +49,7 @@
   .custom-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center; }
   .modal-content { background: var(--ios-card); color: var(--ios-text); padding: 25px; border-radius: 20px; width: 85%; max-width: 300px; text-align: center; }
 
-  @media (max-height: 650px) { .cell { width: 32px; height: 32px; font-size: 16px; } .pad button { font-size: 16px; } }
+  @media (max-height: 650px) { .cell-wrapper { width: 32px; height: 32px; } .cell { font-size: 16px; } .pad button { font-size: 16px; } }
 </style>
 </head>
 <body>
@@ -51,7 +57,7 @@
 <div id="loadingScreen" style="position:fixed; inset:0; background:var(--ios-bg); z-index:2000; display:flex; align-items:center; justify-content:center;">Memuat...</div>
 
 <div id="authScreen">
-  <h1 style="margin-top:20vh">Sudoku Pro</h1>
+  <h1 style="margin-top:20vh">Sudoku</h1>
   <p style="color:var(--ios-secondary); margin-bottom:40px">Masuk untuk simpan rekor terbaik.</p>
   <button class="btn-main btn-blue" id="btnGoogle">Masuk dengan Google</button>
   <button class="btn-main" style="background:var(--ios-card); color:var(--ios-text);" id="btnGuest">Masuk sebagai Tamu</button>
@@ -75,6 +81,9 @@
 
 <div id="gameScreen">
   <div class="game-header">
+    <div class="health-box">
+      <img src="heart.png" width="18" height="18"> <span id="healthVal">10x</span>
+    </div>
     <div id="timer" class="timer-box">00:00</div>
     <div class="header-btns">
       <button class="mini-btn" id="pauseBtn">Pause</button>
@@ -83,9 +92,10 @@
   </div>
   <div id="gameContainer"></div>
   <div class="pad">
-    <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button>
-    <button>6</button><button>7</button><button>8</button><button>9</button>
-    <button id="clearBtn">⌫</button>
+    <button class="num-btn">1</button><button class="num-btn">2</button><button class="num-btn">3</button><button class="num-btn">4</button><button class="num-btn">5</button>
+    <button class="num-btn">6</button><button class="num-btn">7</button><button class="num-btn">8</button><button class="num-btn">9</button>
+    <button id="noteToggle">✎</button>
+    <button id="clearBtn" style="grid-column: span 5; aspect-ratio: unset; height: 45px;">Hapus (⌫)</button>
   </div>
 </div>
 
@@ -101,7 +111,8 @@
   <div class="modal-content">
     <h2 style="color:green">Selamat!</h2>
     <p id="winTime" style="margin:10px 0;"></p>
-    <p style="font-size:12px; color:var(--ios-blue); margin-bottom:10px;">EXP bertambah, level kamu naik!</p>
+    <p id="percentileText" style="font-weight: 700; color: var(--ios-blue); margin-bottom: 5px;"></p>
+    <p style="font-size:12px; color:var(--ios-secondary); margin-bottom:10px;">EXP bertambah, level kamu naik!</p>
     <button onclick="location.reload()" class="btn-main btn-blue" style="width:100%; margin-top:10px;">Menu Utama</button>
   </div>
 </div>
@@ -109,100 +120,47 @@
 <script type="module">
   if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
 
-  // IMPORT FIREBASE SDK (Include query functions buat cek nama unik)
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import { getDatabase, ref, get, set, update, serverTimestamp, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
   
-  // CONFIG BARU LU (sudoku-3eace)
   const firebaseConfig = {
-    apiKey: "AIzaSyDo0iDikkREILMFKyIisU2dWw8d53VlI9I",
-    authDomain: "sudoku-3eace.firebaseapp.com",
-    databaseURL: "https://sudoku-3eace-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "sudoku-3eace",
-    storageBucket: "sudoku-3eace.firebasestorage.app",
-    messagingSenderId: "789492381370",
-    appId: "1:789492381370:web:bc5737dfa8b17be0d4f483"
-  };
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app); 
   const db = getDatabase(app);
   const provider = new GoogleAuthProvider();
 
-  let puzzle = [], solvedPuzzle = [], selectedCell = null, timerInterval = null, startTime = null, elapsedAtPause = 0;
-  let difficulty = 'easy', timeLimit = 420, userData = null, isPaused = false;
+  let puzzle = [], solvedPuzzle = [], notes = [], selectedCell = null, timerInterval = null, startTime = null, elapsedAtPause = 0;
+  let difficulty = 'easy', userData = null, isPaused = false, isNoteMode = false, health = 10;
 
-  // AUTH LOGIC
-  document.getElementById('btnGoogle').onclick = () => {
-    signInWithPopup(auth, provider).catch(e => alert("Login gagal: " + e.message));
-  };
-  document.getElementById('btnGuest').onclick = () => {
-    signInAnonymously(auth).catch(e => alert("Login tamu gagal: " + e.message));
-  };
+  // AUTH LOGIC (Sama kayak sebelumnya)
+  document.getElementById('btnGoogle').onclick = () => signInWithPopup(auth, provider);
+  document.getElementById('btnGuest').onclick = () => signInAnonymously(auth);
 
-  // --- GENERATOR NAMA ALA RPG (KVKV + Angka) ---
   function generateReadableName() {
-    const vokal = "aiueo";
-    const konsonan = "bcdfghjklmnprstvwxyz"; 
-    const rand = (str) => str[Math.floor(Math.random() * str.length)];
-    
-    // Pola: Besar-Kecil-Kecil-Kecil (Contoh: Risa, Budi, Zeno)
-    let nama = rand(konsonan).toUpperCase() + rand(vokal) + rand(konsonan) + rand(vokal);
-    
-    // Tambah angka 100-999 biar makin unik
-    nama += Math.floor(Math.random() * 899 + 100);
-    return nama; // Output: "Risa829", "Buno112"
+    const v = "aiueo", k = "bcdfghjklmnprstvwxyz";
+    const r = (s) => s[Math.floor(Math.random() * s.length)];
+    return r(k).toUpperCase() + r(v) + r(k) + r(v) + Math.floor(Math.random() * 899 + 100);
   }
 
-  // --- LOGIC UTAMA LOAD USER ---
   onAuthStateChanged(auth, async (user) => {
     const loader = document.getElementById('loadingScreen');
-    
     if (user) {
-      try {
-        const userRef = ref(db, `users/${user.uid}`);
-        const snap = await get(userRef);
-        
-        if (snap.exists()) {
-          // User lama, load biasa
-          userData = snap.val();
-        } else {
-          // --- USER BARU: CARI NAMA UNIK ---
-          let validName = "";
-          let isUnique = false;
-          
-          // Loop sampe nemu nama yang belum dipake orang
-          // (Butuh Rules .indexOn ["nickname"])
-          while (!isUnique) {
-            const candidate = generateReadableName();
-            
-            // Cek ke database
-            const q = query(ref(db, 'users'), orderByChild('nickname'), equalTo(candidate));
-            const checkSnap = await get(q);
-            
-            if (!checkSnap.exists()) {
-              validName = candidate;
-              isUnique = true;
-            }
-          }
-
-          // Simpan data user baru
-          userData = { 
-            nickname: validName, 
-            uid: user.uid, 
-            level: 1, 
-            exp: 0 
-          };
-          
-          await set(userRef, userData);
-        }
-      } catch (e) {
-        console.error("Gagal load profile:", e);
-        // Fallback darurat
-        userData = { nickname: "Player" + Math.floor(Math.random()*1000), level: 1, exp: 0 };
+      const snap = await get(ref(db, `users/${user.uid}`));
+      if (snap.exists()) { userData = snap.val(); } 
+      else {
+        let name = generateReadableName();
+        userData = { nickname: name, uid: user.uid, level: 1, exp: 0 };
+        await set(ref(db, `users/${user.uid}`), userData);
       }
-      
       loader.style.display = 'none';
       showStart();
     } else { 
@@ -214,10 +172,9 @@
   function showStart() {
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
-    document.getElementById('userWelcome').textContent = `Halo, ${userData.nickname || "Player"}`;
+    document.getElementById('userWelcome').textContent = `Halo, ${userData.nickname}`;
   }
 
-  // GAME SETUP
   document.querySelectorAll('.diff-btn').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active', 'btn-blue'));
@@ -227,8 +184,9 @@
   });
 
   document.getElementById('startButton').onclick = () => {
-    const limits = { chill: 900, easy: 420, hard: 900, extreme: 1500, god: 2400 };
-    timeLimit = limits[difficulty];
+    const hpMap = { chill: 99, easy: 10, hard: 6, extreme: 4, god: 2 };
+    health = hpMap[difficulty];
+    document.getElementById('healthVal').textContent = `${health}x`;
     document.getElementById('startScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display = 'flex';
     initGame();
@@ -239,11 +197,12 @@
     solve(board);
     solvedPuzzle = JSON.parse(JSON.stringify(board));
     puzzle = hide(board, difficulty);
-    render(puzzle);
+    notes = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => []));
+    render();
     startTimer();
   }
 
-  // SUDOKU LOGIC
+  // SUDOKU CORE (Sama kayak sebelumnya)
   function solve(b) {
     const empty = find(b); if (!empty) return true;
     const [r, c] = empty;
@@ -259,7 +218,7 @@
     return true;
   }
   function hide(b, d) {
-    const counts = { chill: 20, easy: 35, hard: 46, extreme: 54, god: 64 };
+    const counts = { chill: 20, easy: 30, hard: 45, extreme: 55, god: 64 };
     let copy = JSON.parse(JSON.stringify(b)), rem = 0;
     while (rem < counts[d]) {
       let r = Math.floor(Math.random()*9), c = Math.floor(Math.random()*9);
@@ -268,121 +227,158 @@
     return copy;
   }
 
-  // RENDER BOARD
-  function render(p) {
+  function render() {
     const cont = document.getElementById('gameContainer');
     cont.innerHTML = '';
-    p.forEach((row, r) => {
+    puzzle.forEach((row, r) => {
       const rowEl = document.createElement('div'); rowEl.className = 'row';
       row.forEach((v, c) => {
-        const cell = document.createElement('input');
-        cell.className = 'cell'; cell.readOnly = true; cell.inputMode = 'none';
-        if (v !== 0) { cell.value = v; cell.disabled = true; }
-        cell.onclick = () => { 
-          if(selectedCell) selectedCell.style.background='var(--ios-card)'; 
+        const wrap = document.createElement('div'); wrap.className = 'cell-wrapper';
+        const cell = document.createElement('div'); cell.className = 'cell';
+        const noteBox = document.createElement('div'); noteBox.className = 'notes-container';
+        
+        if (v !== 0) { 
+          cell.textContent = v; 
+          cell.classList.add('fixed'); 
+        } else {
+          for(let i=1; i<=9; i++) {
+            const nSpan = document.createElement('div');
+            nSpan.className = 'note-digit';
+            nSpan.textContent = notes[r][c].includes(i) ? i : '';
+            noteBox.appendChild(nSpan);
+          }
+        }
+
+        wrap.onclick = () => { 
+          if(selectedCell) selectedCell.parentElement.style.background='var(--ios-card)'; 
           selectedCell=cell; 
-          cell.style.background='#eef'; 
-          if(document.body.classList.contains('dark')) cell.style.background='#2c2c2e'; 
+          wrap.style.background='#eef';
+          if(document.body.classList.contains('dark')) wrap.style.background='#2c2c2e';
         };
-        cell.dataset.r = r; cell.dataset.c = c;
-        rowEl.appendChild(cell);
+        wrap.dataset.r = r; wrap.dataset.c = c;
+        wrap.appendChild(noteBox); wrap.appendChild(cell);
+        rowEl.appendChild(wrap);
       });
       cont.appendChild(rowEl);
     });
   }
 
-  // TIMER
   function startTimer() {
-    startTime = Date.now() - elapsedAtPause;
+    startTime = Date.now();
     timerInterval = setInterval(() => {
       if(isPaused) return;
-      const s = Math.max(0, timeLimit - Math.floor((Date.now()-startTime)/1000));
+      const s = Math.floor((Date.now()-startTime)/1000);
       document.getElementById('timer').textContent = `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
-      if (s <= 0) { clearInterval(timerInterval); alert('Waktu habis!'); location.reload(); }
     }, 1000);
   }
 
-  // CONTROLS
-  document.getElementById('pauseBtn').onclick = () => { isPaused = true; elapsedAtPause = Date.now() - startTime; document.getElementById('pauseModal').style.display='flex'; };
-  document.getElementById('resumeBtn').onclick = () => { isPaused = false; startTime = Date.now() - elapsedAtPause; document.getElementById('pauseModal').style.display='none'; };
-  document.getElementById('homeBtn').onclick = () => { if(confirm('Ke Menu Utama? Progres akan hilang.')) location.reload(); };
+  // NOTE TOGGLE
+  document.getElementById('noteToggle').onclick = () => {
+    isNoteMode = !isNoteMode;
+    document.getElementById('noteToggle').classList.toggle('active', isNoteMode);
+  };
 
-  // INPUT PAD
-  document.querySelectorAll('.pad button').forEach(b => {
-    b.onclick = () => {
-      if (!selectedCell || selectedCell.disabled || isPaused) return;
-      const v = b.id === 'clearBtn' ? '' : b.textContent;
-      selectedCell.value = v;
-      const r = selectedCell.dataset.r, c = selectedCell.dataset.c;
-      puzzle[r][c] = v === '' ? 0 : parseInt(v);
-      
-      // Visual feedback
-      if (['chill', 'easy', 'hard'].includes(difficulty)) {
-        if (v !== '' && puzzle[r][c] === solvedPuzzle[r][c]) { selectedCell.style.color = 'blue'; } else if (v !== '') { selectedCell.style.color = 'red'; }
-      } else { selectedCell.style.color = 'var(--ios-text)'; }
-      
-      checkWin();
+  // INPUT LOGIC
+  document.querySelectorAll('.num-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (!selectedCell || selectedCell.classList.contains('fixed') || isPaused) return;
+      const r = selectedCell.parentElement.dataset.r, c = selectedCell.parentElement.dataset.c;
+      const val = parseInt(btn.textContent);
+
+      if (isNoteMode) {
+        if (notes[r][c].includes(val)) notes[r][c] = notes[r][c].filter(n => n !== val);
+        else notes[r][c].push(val);
+        renderCell(r, c);
+      } else {
+        puzzle[r][c] = val;
+        notes[r][c] = []; // Hapus note kalo udah diisi
+        if (val !== solvedPuzzle[r][c]) {
+          health--;
+          document.getElementById('healthVal').textContent = `${health}x`;
+          selectedCell.style.color = 'red';
+          if (health <= 0) { alert('Game Over! Nyawa Habis.'); location.reload(); }
+        } else {
+          selectedCell.style.color = 'blue';
+          checkWin();
+        }
+        renderCell(r, c);
+      }
     };
   });
 
-  // --- LOGIC MENANG & SAVE SKOR ---
+  document.getElementById('clearBtn').onclick = () => {
+    if (!selectedCell || selectedCell.classList.contains('fixed')) return;
+    const r = selectedCell.parentElement.dataset.r, c = selectedCell.parentElement.dataset.c;
+    puzzle[r][c] = 0;
+    notes[r][c] = [];
+    renderCell(r, c);
+  };
+
+  function renderCell(r, c) {
+    const wrap = document.querySelector(`.cell-wrapper[data-r="${r}"][data-c="${c}"]`);
+    const cell = wrap.querySelector('.cell');
+    const noteBox = wrap.querySelector('.notes-container');
+    
+    cell.textContent = puzzle[r][c] !== 0 ? puzzle[r][c] : '';
+    const noteSpans = noteBox.querySelectorAll('.note-digit');
+    noteSpans.forEach((span, i) => {
+      span.textContent = notes[r][c].includes(i+1) ? (i+1) : '';
+    });
+  }
+
   async function checkWin() {
-    for (let i=0; i<9; i++) for (let j=0; j<9; j++) if (puzzle[i][j] === 0 || puzzle[i][j] !== solvedPuzzle[i][j]) return;
+    for (let i=0; i<9; i++) for (let j=0; j<9; j++) if (puzzle[i][j] !== solvedPuzzle[i][j]) return;
     
     clearInterval(timerInterval);
     const dur = Math.floor((Date.now()-startTime)/1000);
     
-    if (difficulty !== 'chill' && auth.currentUser) {
-      const uid = auth.currentUser.uid;
-      const userRef = ref(db, `users/${uid}`);
-      // Pake UID sebagai key
-      const scoreRef = ref(db, `scores/${difficulty}/${uid}`); 
-
-      try {
-        // 1. UPDATE EXP USER
-        const uSnap = await get(userRef);
-        let uData = uSnap.exists() ? uSnap.val() : { level: 1, exp: 0 };
-        
-        uData.level = uData.level || 1;
-        uData.exp = uData.exp || 0;
-
-        const expGain = { easy: 25, hard: 60, extreme: 120, god: 300 };
-        uData.exp += (expGain[difficulty] || 10);
-        
-        // Level Up Logic
-        let cap = uData.level * 100;
-        while (uData.exp >= cap) {
-          uData.exp -= cap;
-          uData.level++;
-          cap = uData.level * 100;
-        }
-
-        await update(userRef, {
-          level: uData.level,
-          exp: uData.exp,
-          lastLogin: serverTimestamp()
-        });
-
-        // 2. CEK & SIMPAN SKOR
-        const sSnap = await get(scoreRef);
-        
-        if (!sSnap.exists() || dur < sSnap.val().duration) {
-          await set(scoreRef, {
-            nickname: userData.nickname, 
-            duration: dur,
-            timestamp: serverTimestamp()
-          });
-          console.log("Rekor baru disimpan!");
-        }
-
-      } catch (e) { 
-        console.error("Gagal simpan:", e); 
+    // LOGIC PERCENTILE
+    let percentile = 0;
+    try {
+      const scoresSnap = await get(ref(db, `scores/${difficulty}`));
+      if (scoresSnap.exists()) {
+        const allScores = Object.values(scoresSnap.val());
+        const total = allScores.length;
+        const slower = allScores.filter(s => s.duration > dur).length;
+        percentile = Math.round((slower / (total || 1)) * 100);
       }
+    } catch(e) { console.error(e); }
+
+    if (difficulty !== 'chill' && auth.currentUser) {
+      // Simpan skor & update level (sama kayak script lama lu)
+      saveProgress(dur);
     }
     
-    document.getElementById('winTime').textContent = `waktu: ${dur} detik.`;
+    document.getElementById('winTime').textContent = `Waktu: ${dur} detik.`;
+    document.getElementById('percentileText').textContent = `Anda lebih cepat dari ${percentile}% pemain!`;
     document.getElementById('winModal').style.display = 'flex';
   }
+
+  async function saveProgress(dur) {
+    const uid = auth.currentUser.uid;
+    const userRef = ref(db, `users/${uid}`);
+    const scoreRef = ref(db, `scores/${difficulty}/${uid}`);
+    
+    const uSnap = await get(userRef);
+    let uData = uSnap.val();
+    const expGain = { easy: 25, hard: 60, extreme: 120, god: 300 };
+    uData.exp += (expGain[difficulty] || 10);
+    
+    let cap = uData.level * 100;
+    while (uData.exp >= cap) { uData.exp -= cap; uData.level++; cap = uData.level * 100; }
+    
+    await update(userRef, { level: uData.level, exp: uData.exp });
+    const sSnap = await get(scoreRef);
+    if (!sSnap.exists() || dur < sSnap.val().duration) {
+      await set(scoreRef, { nickname: userData.nickname, duration: dur, timestamp: serverTimestamp() });
+    }
+  }
+
+  // CONTROLS MODAL
+  document.getElementById('pauseBtn').onclick = () => { isPaused = true; elapsedAtPause = Date.now() - startTime; document.getElementById('pauseModal').style.display='flex'; };
+  document.getElementById('resumeBtn').onclick = () => { isPaused = false; startTime = Date.now() - elapsedAtPause; document.getElementById('pauseModal').style.display='none'; };
+  document.getElementById('homeBtn').onclick = () => { if(confirm('Ke Menu Utama? Progres akan hilang.')) location.reload(); };
+
 </script>
 </body>
 </html>
