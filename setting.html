@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings</title>
+<style>
+  :root { --bg:#f2f2f7; --card:#fff; --text:#000; --blue:#007aff; --red:#ff3b30; --border:#ccc; }
+  body.dark { --bg:#000; --card:#1c1c1e; --text:#fff; --border:#38383a; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,sans-serif; padding:20px; transition:0.3s; }
+  .card { background:var(--card); border-radius:12px; padding:15px; margin-bottom:15px; }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:0.5px solid var(--border); }
+  .exp-bar { width:100%; height:8px; background:#3a3a3c; border-radius:4px; margin-top:10px; overflow:hidden; }
+  .exp-fill { height:100%; background:var(--blue); width:0%; transition:0.5s; }
+  
+  /* Update Style Tombol */
+  .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+  .btn { width:100%; padding:14px; border-radius:12px; border:none; font-weight:700; cursor: pointer; font-size: 15px; }
+  .btn-blue { background:var(--blue); color:#fff; }
+  .btn-red { background:var(--red); color:#fff; }
+  .btn-back { background:var(--card); color:var(--text); border: 1px solid var(--border); margin-top: 10px; }
+  
+  input[type="text"] { background:none; border:none; color:inherit; text-align:right; font-size:16px; width:50%; }
+</style>
+</head>
+<body>
+  <h2>Pengaturan</h2>
+  
+  <div class="card">
+    <div class="row">
+      <span>Mode Gelap</span>
+      <input type="checkbox" id="darkToggle">
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Profil</h3>
+    <div class="row">
+      <span>Nama</span>
+      <input type="text" id="nick" placeholder="Nickname">
+    </div>
+    <div class="row">
+      <span>Level <b id="lvl">1</b></span>
+      <span id="expText" style="color:var(--blue)">0/100 XP</span>
+    </div>
+    <div class="exp-bar">
+      <div id="expFill" class="exp-fill"></div>
+    </div>
+  </div>
+
+  <div id="guestBox" class="card" style="display:none; border: 1px solid var(--red);">
+    <p style="color:var(--red); font-size:12px; margin-bottom:10px;">
+      Akun tamu bisa hilang kalau clear cache. Tautkan Google biar aman!
+    </p>
+    <button class="btn btn-blue" id="linkBtn" style="background:#34c759">Tautkan Google</button>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-blue" onclick="save()">Simpan</button>
+    <button class="btn btn-red" onclick="logout()">Keluar Akun</button>
+  </div>
+  <button class="btn btn-back" onclick="location.href='/'">Kembali ke Menu</button>
+
+<script type="module">
+  // IMPORT SDK (Tambah signOut)
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, linkWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+  
+  // CONFIG BARU
+  const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+  
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+  // 1. DARK MODE
+  const darkToggle = document.getElementById('darkToggle');
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark');
+    if(darkToggle) darkToggle.checked = true;
+  }
+  if(darkToggle) {
+    darkToggle.onchange = (e) => {
+      const mode = e.target.checked ? 'dark' : 'light';
+      localStorage.setItem('theme', mode);
+      document.body.classList.toggle('dark', e.target.checked);
+    };
+  }
+
+  // 2. LOAD DATA
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) return location.href = "/"; 
+    
+    try {
+      const snap = await get(ref(db, `users/${user.uid}`));
+      const data = snap.val() || {};
+
+      document.getElementById('nick').value = data.nickname || "Player";
+      document.getElementById('lvl').textContent = data.level || 1;
+      
+      const lvl = data.level || 1;
+      const exp = data.exp || 0;
+      const cap = lvl * 100;
+      
+      document.getElementById('expText').textContent = `${exp}/${cap} XP`;
+      document.getElementById('expFill').style.width = `${(exp / cap) * 100}%`;
+
+      if (user.isAnonymous) {
+        document.getElementById('guestBox').style.display = 'block';
+      }
+    } catch (e) {
+      console.error("Gagal muat profil:", e);
+    }
+  });
+
+  // 3. LOGIC SIMPAN (Gak redirect, cuma alert)
+  window.save = async () => {
+    const newNick = document.getElementById('nick').value.trim();
+    if (!newNick) return alert("Nama jangan kosong dong");
+
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const saveBtn = document.querySelector('button[onclick="save()"]');
+    const oriText = saveBtn.textContent;
+    saveBtn.textContent = "Menyimpan...";
+    saveBtn.disabled = true;
+
+    try {
+      const updates = {};
+      updates[`users/${user.uid}/nickname`] = newNick;
+
+      // Sync Leaderboard
+      const diffs = ['easy', 'hard', 'extreme', 'god'];
+      await Promise.all(diffs.map(async (d) => {
+        const scorePath = `scores/${d}/${user.uid}`;
+        const snapshot = await get(ref(db, scorePath));
+        if (snapshot.exists()) {
+          updates[`${scorePath}/nickname`] = newNick;
+        }
+      }));
+
+      await update(ref(db), updates);
+      
+      alert("Data berhasil disimpan!"); // Feedback visual
+      
+    } catch (e) {
+      alert("Gagal simpan: " + e.message);
+    } finally {
+      saveBtn.textContent = oriText;
+      saveBtn.disabled = false;
+    }
+  };
+
+  // 4. LOGIC LOGOUT (Fitur Baru)
+  window.logout = async () => {
+    if (confirm("Yakin mau keluar akun?")) {
+      try {
+        await signOut(auth);
+        location.href = "/"; // Balik ke halaman utama (nanti muncul login screen)
+      } catch (e) {
+        alert("Gagal logout: " + e.message);
+      }
+    }
+  };
+
+  // 5. LINK AKUN
+  const linkBtn = document.getElementById('linkBtn');
+  if (linkBtn) {
+    linkBtn.onclick = async () => {
+      try {
+        const provider = new GoogleAuthProvider();
+        await linkWithPopup(auth.currentUser, provider);
+        alert("Akun berhasil ditautkan!");
+        location.reload();
+      } catch (e) {
+        alert("Gagal menautkan: " + e.message);
+      }
+    };
+  }
+</script>
+</body>
+</html>

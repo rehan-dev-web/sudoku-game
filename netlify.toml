@@ -1,0 +1,22 @@
+[build]
+  publish = "."
+
+# BAGIAN FUNCTIONS HAPUS AJA, KAN UDAH GAPAKE
+
+# 1. Biar url /leaderboard ngebuka leaderboard.html
+[[redirects]]
+  from = "/leaderboard"
+  to = "/leaderboard.html"
+  status = 200
+
+# 2. Biar url /setting ngebuka setting.html
+[[redirects]]
+  from = "/setting"
+  to = "/setting.html"
+  status = 200
+
+# 3. Opsional: Kalo user ngetik link asal-asalan, balikin ke home
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
